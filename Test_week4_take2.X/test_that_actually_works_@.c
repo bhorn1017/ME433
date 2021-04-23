@@ -34,7 +34,7 @@
 #pragma config PMDL1WAY = OFF // allow multiple reconfigurations
 #pragma config IOL1WAY = OFF // allow multiple reconfigurations
 
-//UAET function prototypes (copied from NU32.h and NU32.c)
+//UART function prototypes (copied from NU32.h and NU32.c)
 void readUART1(char * string, int maxLength);
 void writeUART1(const char * string);
 
@@ -57,8 +57,7 @@ int main() {
     // do your TRIS and LAT commands here
     TRISBbits.TRISB4 = 1; //initialize B4 as an input
     TRISAbits.TRISA4 = 0; //initialize A4 as an output
-    LATAbits.LATA4 = 1; //initialize A4 as low
-    //change this back later to 0^^
+    LATAbits.LATA4 = 0; //initialize A4 as low
     
     //set pins to enable UART
     U1RXRbits.U1RXR = 0b0001; //U1RX is B6

@@ -1,8 +1,9 @@
-#include<xc.h>           // processor SFR definitions
-#include<sys/attribs.h>  // __ISR macro
+#include "spi.h"
+#include "make_wave.h"
+#include "UART.h"
 
-#include <stdio.h>
 
+//********start of pragmas*********
 // DEVCFG0
 #pragma config DEBUG = OFF // disable debugging
 #pragma config JTAGEN = OFF // disable jtag
@@ -33,10 +34,7 @@
 #pragma config USERID = 0 // some 16bit userid, doesn't matter what
 #pragma config PMDL1WAY = OFF // allow multiple reconfigurations
 #pragma config IOL1WAY = OFF // allow multiple reconfigurations
-
-//UAET function prototypes (copied from NU32.h and NU32.c)
-void readUART1(char * string, int maxLength);
-void writeUART1(const char * string);
+//********end of pragmas********
 
 int main() {
 
@@ -54,12 +52,6 @@ int main() {
     // disable JTAG to get pins back
     DDPCONbits.JTAGEN = 0;
 
-    // do your TRIS and LAT commands here
-    TRISBbits.TRISB4 = 1; //initialize B4 as an input
-    TRISAbits.TRISA4 = 0; //initialize A4 as an output
-    LATAbits.LATA4 = 1; //initialize A4 as low
-    //change this back later to 0^^
-    
     //set pins to enable UART
     U1RXRbits.U1RXR = 0b0001; //U1RX is B6
     RPB7Rbits.RPB7R = 0b0001; //U1TX is B7
@@ -79,64 +71,73 @@ int main() {
     //enabled the UART
     U1MODEbits.ON = 1;
     
+    // do your TRIS and LAT commands here (using this to test program is loaded)
+    TRISBbits.TRISB4 = 1; //initialize B4 as an input
+    TRISAbits.TRISA4 = 0; //initialize A4 as an output
+    LATAbits.LATA4 = 0; //initialize A4 as low
+    
+    
+    
+    initSPI(); //initialize for SPI
 
     __builtin_enable_interrupts();
     
-    char m[100];
-    
+    //create arrays to store the wave values 
+    unsigned short sin_array[50];
+    int j;
+    for (j=0;j<50;j++){
+        sin_array[j]=make_sin(j);
+    }
+    unsigned short triangle_array[100];
+    int k;
+    for (k=0;k<100;k++){
+        triangle_array[k]=make_triangle(k);
+    }    
+        
+//declare counting variables
+unsigned char i = 0; 
+unsigned char l = 0;
 
     while (1) {
-        // use _CP0_SET_COUNT(0) and _CP0_GET_COUNT() to test the PIC timing
-        // remember the core timer runs at half the sysclk
-        if (PORTBbits.RB4 == 0) { //B4 is low when button is pushed 
-               _CP0_SET_COUNT(0);//set the count to zero
-               int i; //declare for loop variable
-               for (i=0;i<4;i++){ //loop 4 times (on,off,on,off)
-                   while (_CP0_GET_COUNT() < 12e6) { //CP0 = sysclk/2=48MHz/2=24MHz
-                       ; //delay               //.5s * 24MHz = 12e6 cycles 
-                   } //end of while loop
-                   _CP0_SET_COUNT(0); //reset the count to zero each time
-                   LATAbits.LATA4 = !LATAbits.LATA4; //invert A4
-               } //end of for loop   
-               sprintf(m,"Hello!");
-               writeUART1(m);
-        }//end of outer if statement
+        
+        unsigned char p1;
+        unsigned char p2;
+        unsigned char q1;
+        unsigned char q2;
+        
+        p1 = (wave_to_ADC(0,triangle_array[i]) >> 8); //first 8 bits
+        p2 = wave_to_ADC(0,triangle_array[i]); //second 8 bits 
+        q1 = (wave_to_ADC(1,sin_array[l]) >> 8); //repeat for other wave
+        q2 = wave_to_ADC(1,sin_array[l]);
+        
+        LATAbits.LATA0 = 0; //bring CS low
+                //CS=low means that device is selected for communication
+        spi_io(p1);
+        spi_io(p2);
+        LATAbits.LATA0 = 1; //bring CS high (communication is over)
+        
+        //repeat for other wave
+        LATAbits.LATA0 = 0; //bring CS low
+        spi_io(q1);
+        spi_io(q2);
+        LATAbits.LATA0 = 1; //bring CS high (communication is over
+
+        //increment the counting variables
+        i++;
+        if (i==99) {
+            i=0;
+        }
+        l++;
+        if (l==49) {
+            l=0;
+        }
+        _CP0_SET_COUNT(0); 
+        while (_CP0_GET_COUNT() < 480000 /2 ){ //delay for .01 seconds  
+         //sysclk=48MHz -> CPU clock = 48MHz/2=24Mhz
+        } 
+        
+        }
+        {
     }//end of infinite while loop
 }//end of main
 
-// Read from UART1
-// block other functions until you get a '\r' or '\n'
-// send the pointer to your char array and the number of elements in the array
-void readUART1(char * message, int maxLength) {
-  char data = 0;
-  int complete = 0, num_bytes = 0;
-  // loop until you get a '\r' or '\n'
-  while (!complete) {
-    if (U1STAbits.URXDA) { // if data is available
-      data = U1RXREG;      // read the data
-      if ((data == '\n') || (data == '\r')) {
-        complete = 1;
-      } else {
-        message[num_bytes] = data;
-        ++num_bytes;
-        // roll over if the array is too small
-        if (num_bytes >= maxLength) {
-          num_bytes = 0;
-        }
-      }
-    }
-  }
-  // end the string
-  message[num_bytes] = '\0';
-}
-
-// Write a character array using UART1
-void writeUART1(const char * string) {
-  while (*string != '\0') {
-    while (U1STAbits.UTXBF) {
-      ; // wait until tx buffer isn't full
-    }
-    U1TXREG = *string;
-    ++string;
-  }
-}
