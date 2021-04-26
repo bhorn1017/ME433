@@ -1,5 +1,5 @@
 #include "i2c_master_noint.h"
-#define address 0x00 //the address of the IO expander (set by its pin A0,A1,A2)
+#define address 0b000 //the address of the IO expander (set by its pin A0,A1,A2)
 
 //********start of pragmas*********
 // DEVCFG0
@@ -72,7 +72,7 @@ int main() {
     // do your TRIS and LAT commands here (using this to test program is loaded)
     TRISBbits.TRISB4 = 1; //initialize B4 as an input
     TRISAbits.TRISA4 = 0; //initialize A4 as an output
-    LATAbits.LATA4 = 1; //initialize A4 as low
+    LATAbits.LATA4 = 0; //initialize A4 as low
     
     //initial I2C setup:
     
@@ -100,12 +100,26 @@ int main() {
         //blink the LED on and off (for testing)
         LATAbits.LATA4 = !LATAbits.LATA4; 
         
-        //blink the LED on pin GPA7 (using OLATA again)
-        //GPA7 is the 7th bit in the register
-        setPin(address,0x14,0b10000000);
+        //if the button is pushed (GPA0=low) then turn on 
+        //GPA7 (turn the LED on)
+        //reading from bit 0 of GPIOB(address=0x13)
+        unsigned char pushed;
+        pushed = readPin(address,0x13);
+        
+        //bit shift to isolate the 0th bit 
+        pushed = pushed << 7;
+        if (pushed == 0){ //low=button is pushed
+            //blink the LED on pin GPA7 (using OLATA again)
+            //GPA7 is the 7th bit in the register
+            setPin(address,0x14,0b10000000);
+        }
+        else {  //button is not being pushed
+            setPin(address,0x14,0b00000000);
+            
+        }
 
         _CP0_SET_COUNT(0); 
-        while (_CP0_GET_COUNT() < 48000000 /2 ){ //delay for 1 seconds  
+        while (_CP0_GET_COUNT() < 4800000 /2 ){ //delay for 0.1 seconds  
          //sysclk=48MHz -> CPU clock = 48MHz/2=24Mhz
         } //end of delay loop
          

@@ -70,11 +70,11 @@ void setPin(unsigned char address, unsigned char reg, unsigned char value){
     i2c_master_start(); 
     
     //Step 2: send the address to slave
-    address = address << 1; //the last bit is either 0 to write or     
-    //1 to read (here it is zero)
+    //address format:(0)(1)(0)(0)(A2)(A1)(A0)(R/W); here A2=A1=A0=0 )
+    address = address << 1; //shift to make A2 bit 3, A2 bit 2...
+    address = address | 0b01000000; //bc R/W=0 for writing
     i2c_master_send(address); //send the address
-
-    LATAbits.LATA4 = 0; //should turn off once code gets unstuck     
+    
     //Step 3: send the command (ie the register to be changed)
     i2c_master_send(reg);
     
@@ -83,4 +83,43 @@ void setPin(unsigned char address, unsigned char reg, unsigned char value){
     
     //Step 5: send the stop bit
     i2c_master_stop();
+}
+unsigned char readPin(unsigned char address, unsigned char reg){
+    //general read function for I2C
+
+    //Step 1:send the start bit
+    i2c_master_start(); 
+  
+    //Step 2: send the address to slave (so with the write bit)
+    //address format:(0)(1)(0)(0)(A2)(A1)(A0)(R/W); here A2=A1=A0=0 )
+    address = address << 1; //shift to make A2 bit 3, A2 bit 2...
+    address = address | 0b01000000; //bc R/W=0 for writing
+    i2c_master_send(address); //send the address
+    
+    //Step 3: send the command (ie the register to be changed)
+    i2c_master_send(reg);
+
+    //Step 4: do a Restart
+    i2c_master_restart();
+    
+    //Step 5: send the address with the read bit
+    //address format:(0)(1)(0)(0)(A2)(A1)(A0)(R/W); here A2=A1=A0=0 )
+    address = address << 1; //shift to make A2 bit 3, A2 bit 2...
+    address = address | 0b01000001; //bc R/W=1 for reading
+    i2c_master_send(0b01000001); //send the address
+ 
+    //Step 6: Receive a byte from the slave
+    unsigned char received;
+    received = i2c_master_recv();
+    
+    //Step 7: acknowledge data has been received
+    i2c_master_ack(1);
+    //val=0 if more bytes should be received, val=1 if done
+    //directly inputting 1 for now since we
+    //only need one byte of data sent to us
+          
+    //Step 8: send the stop bit
+    i2c_master_stop();
+ 
+    return received; //return the byte received from the slave
 }

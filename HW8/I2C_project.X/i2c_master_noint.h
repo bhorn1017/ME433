@@ -20,6 +20,6 @@ void i2c_master_stop(void); // send a stop
 void setPin(unsigned char address, unsigned char reg, unsigned char value);
 
 //general purpose read function
-
+unsigned char readPin(unsigned char address, unsigned char reg);
 
 #endif
