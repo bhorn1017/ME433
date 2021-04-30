@@ -1,7 +1,5 @@
-#include "spi.h"
-#include "make_wave.h"
-#include "UART.h"
-
+#include "ws2812b.h"
+#include "UART.h" //for debugging
 
 //********start of pragmas*********
 // DEVCFG0
@@ -52,95 +50,88 @@ int main() {
     // disable JTAG to get pins back
     DDPCONbits.JTAGEN = 0;
 
-    //set pins to enable UART
-    U1RXRbits.U1RXR = 0b0001; //U1RX is B6
-    RPB7Rbits.RPB7R = 0b0001; //U1TX is B7
-    
-    //turn on UART3 without an interrupt (copied from NU32.c)
-    U1MODEbits.BRGH = 0; //set baud to NU3@_DESIRED_BAUD
-    U1BRG = ((48e6 / 115200) / 16) - 1;
-    
-    //8 bit, no parity bit, and 1 stop bit (8N1 setup)
-    U1MODEbits.PDSEL = 0;
-    U1MODEbits.STSEL = 0;
-    
-    //configure TX and RX pins as output & input pins
-    U1STAbits.UTXEN = 1;
-    U1STAbits.URXEN = 1;
-    
-    //enabled the UART
-    U1MODEbits.ON = 1;
+//    //set pins to enable UART   //commented out so B6 can be used for I/O
+//    U1RXRbits.U1RXR = 0b0001; //U1RX is B6
+//    RPB7Rbits.RPB7R = 0b0001; //U1TX is B7
+//    
+//    //turn on UART3 without an interrupt (copied from NU32.c)
+//    U1MODEbits.BRGH = 0; //set baud to NU3@_DESIRED_BAUD
+//    U1BRG = ((48e6 / 115200) / 16) - 1;
+//    
+//    //8 bit, no parity bit, and 1 stop bit (8N1 setup)
+//    U1MODEbits.PDSEL = 0;
+//    U1MODEbits.STSEL = 0;
+//    
+//    //configure TX and RX pins as output & input pins
+//    U1STAbits.UTXEN = 1;
+//    U1STAbits.URXEN = 1;
+//    
+//    //enabled the UART
+//    U1MODEbits.ON = 1;
     
     // do your TRIS and LAT commands here (using this to test program is loaded)
     TRISBbits.TRISB4 = 1; //initialize B4 as an input
     TRISAbits.TRISA4 = 0; //initialize A4 as an output
     LATAbits.LATA4 = 0; //initialize A4 as low
     
+    //initial set up while interrupts are disabled
+    ws2812b_setup();
     
-    
-    initSPI(); //initialize for SPI
-
+    //end of I2C setup        
     __builtin_enable_interrupts();
     
-    //create arrays to store the wave values 
-    unsigned short sin_array[50];
-    int j;
-    for (j=0;j<50;j++){
-        sin_array[j]=make_sin(j);
-    }
-    unsigned short triangle_array[100];
-    int k;
-    for (k=0;k<100;k++){
-        triangle_array[k]=make_triangle(k);
-    }    
-        
-//declare counting variables
-unsigned char i = 0; 
-unsigned char l = 0;
-
-    while (1) {
-        char msg1[100];
-        sprintf(msg1,"hi");
-        writeUART1(msg1);
-        
-        unsigned char p1;
-        unsigned char p2;
-        unsigned char q1;
-        unsigned char q2;
-        
-        p1 = (wave_to_ADC(0,triangle_array[i]) >> 8); //first 8 bits
-        p2 = wave_to_ADC(0,triangle_array[i]); //second 8 bits 
-        q1 = (wave_to_ADC(1,sin_array[l]) >> 8); //repeat for other wave
-        q2 = wave_to_ADC(1,sin_array[l]);
-        
-        LATAbits.LATA0 = 0; //bring CS low
-                //CS=low means that device is selected for communication
-        spi_io(p1);
-        spi_io(p2);
-        LATAbits.LATA0 = 1; //bring CS high (communication is over)
-        
-        //repeat for other wave
-        LATAbits.LATA0 = 0; //bring CS low
-        spi_io(q1);
-        spi_io(q2);
-        LATAbits.LATA0 = 1; //bring CS high (communication is over
-
-        //increment the counting variables
-        i++;
-        if (i==99) {
-            i=0;
-        }
-        l++;
-        if (l==49) {
-            l=0;
-        }
+    wsColor c[4]; //initialize the struct to hold the RGB arrays
+       
+    //reset the lights before use
+    LATBbits.LATB6 = 0; 
+    TMR2 = 0;
+    while(TMR2 < 2400){} // wait 50uS, reset condition
+    
+    //initialize the counting variables, offset by 90 degrees
+     int i1=0;
+     int i2=90;
+     int i3=180;
+     int i4=270;
+    while (1) { //enter the infinite while loop
+       //fill the RBG struct arrays 
+       c[0] = HSBtoRGB(i1,1,1); 
+       c[1] = HSBtoRGB(i2,1,1);
+       c[2] = HSBtoRGB(i3,1,1);
+       c[3] = HSBtoRGB(i4,1,1);
+       
+       //send the struct and number of LEDS to the function
+       ws2812b_setColor(c,4);
+       
+       //increment the counting variables
+       if (i1==350){ 
+           i1=0;
+       }
+       else{
+           i1 = i1 + 10;
+       }
+       if (i2==350){ 
+           i2=0;
+       }
+       else{
+           i2 = i2 + 10;
+       }
+       if (i3==350){ 
+           i3=0;
+       }
+       else{
+           i3 = i3 + 10;
+       }
+       if (i4==350){ 
+           i4=0;
+       }
+       else{
+           i4 = i4 + 10;
+       }
+       
+       //delay for 0.1s before changing colors again
         _CP0_SET_COUNT(0); 
-        while (_CP0_GET_COUNT() < 480000 /2 ){ //delay for .01 seconds  
-         //sysclk=48MHz -> CPU clock = 48MHz/2=24Mhz
-        } 
-        
-        }
-        {
+        while (_CP0_GET_COUNT() < 4800000 /2 ){ 
+        } //end of delay loop
     }//end of infinite while loop
 }//end of main
 
