@@ -76,11 +76,16 @@ int main() {
     //variable initialization for while loop
     signed short short_data[7]; //to store data
     char m[20]; //for sprintf
+    char n[20];
     unsigned short time1=0; //FPS calculation variables
     unsigned long time2=0;
     float difference;
     
     while (1) {
+        
+        //print FPS
+        sprintf(n,"FPS = %f",difference);
+        drawString(28,200,0xFF,n);
                 
         i2c_master_read_multiple(IMU_ADDR,IMU_OUT_TEMP_L,short_data,14);
         
@@ -100,7 +105,6 @@ int main() {
         
         //make if statement=1 to display the bar
         if (1){
-            LCD_clearScreen(0x0000);
             xbar(short_data[5]);
             ybar(short_data[4]);
         }

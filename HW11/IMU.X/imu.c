@@ -37,17 +37,24 @@ void xbar(signed short x_acc){
     //normalize the x_acc so the full bar fits on the screen
     x_acc = x_acc / 100;
     
+     //redraw the relevant background (much faster than clearing the entire screen)
+    for (k=0;k<240;k++){
+        for (l=0;l<3;l++){
+            LCD_drawPixel(k,100+l,0x0000); 
+        }
+    }
+    
     //draw acceleration bar
     if (x_acc > 0){
         for (k=0;k<=x_acc;k++){
-            for (l=0;l<5;l++){
+            for (l=0;l<3;l++){
                 LCD_drawPixel(100+k,100+l,0x0F); 
                 } //end of inner for loop
             } //end of outer for loop
     }
     else{
         for (k=0;k<=-x_acc;k++){
-            for (l=0;l<5;l++){
+            for (l=0;l<3;l++){
                 LCD_drawPixel(100-k,100+l,0x0F); 
                 } //end of inner for loop
             } //end of outer for loop       
@@ -61,17 +68,24 @@ void ybar(signed short y_acc){
     //normalize the y_acc so the full bar fits on the screen
     y_acc = y_acc / 100;
     
+    //redraw the relevant background (much faster than clearing the entire screen)
+    for (k=0;k<240;k++){ //clear the ybar
+        for (l=0;l<3;l++){
+            LCD_drawPixel(100+l,k,0x0000); 
+        }
+    }
+            
     //draw acceleration bar
     if (y_acc > 0){
         for (k=0;k<=y_acc;k++){
-            for (l=0;l<5;l++){
+            for (l=0;l<3;l++){
                 LCD_drawPixel(100+l,100+k,0x0F); 
                 } //end of inner for loop
             } //end of outer for loop
     }
     else{
         for (k=0;k<=-y_acc;k++){
-            for (l=0;l<5;l++){
+            for (l=0;l<3;l++){
                 LCD_drawPixel(100+l,100-k,0x0F); 
                 } //end of inner for loop
             } //end of outer for loop       
