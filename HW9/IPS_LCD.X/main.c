@@ -102,11 +102,9 @@ int main() {
         } //end of outer for loop
                 
         //calculate FPS
-        difference = 24000000.0 / (time2-time1) ; //convert to Hz
         
         LATAbits.LATA4 = !LATAbits.LATA4; //heartbeat LED
         
- 
         time2 = _CP0_GET_COUNT();
         difference = 24000000.0 / (time2-time1) ; //convert to Hz
         

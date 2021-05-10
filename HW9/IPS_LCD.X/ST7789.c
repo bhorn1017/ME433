@@ -124,7 +124,7 @@ void drawChar(unsigned short x,unsigned short y, unsigned short color, unsigned 
             } //end of if statement
             else {  //fill in the background color where the pixel isn't drawn
                 LCD_drawPixel(x+ii,y+jj,0x0000);
-            }
+            } //end of else
         } //end of inner for loop
     } //end of outer for loop           
 } //end of drawChar()
